@@ -369,7 +369,7 @@ export class VisibleTileSet {
     allVisibleTilesLoaded: boolean = false;
     options: VisibleTileSetOptions;
 
-    private readonly m_projectionMatrixOverride = new THREE.Matrix4();
+    private readonly m_cameraOverride = new THREE.PerspectiveCamera();
     private m_dataSourceCache: DataSourceCache;
     private m_viewRange: ViewRanges = { near: 0.1, far: Infinity, minimum: 0.1, maximum: Infinity };
 
@@ -1150,22 +1150,21 @@ export class VisibleTileSet {
             }
         });
 
-        // If elevation is to be taken into account create extended frustum:
+        // If elevation is to be taken into account extend view frustum:
         // (near ~0, far: maxVisibilityRange) that allows to consider tiles that
         // are far below ground plane and high enough to intersect the frustum.
         if (elevationRangeSource !== undefined) {
-            const fp = MapViewUtils.getCameraFrustumPlanes(this.m_frustumIntersection.camera);
-            fp.near = this.m_viewRange.minimum;
-            fp.far = this.m_viewRange.maximum;
-            this.m_projectionMatrixOverride.makePerspective(
-                fp.left,
-                fp.right,
-                fp.bottom,
-                fp.top,
-                fp.near,
-                fp.far
+            this.m_cameraOverride.copy(this.m_frustumIntersection.camera);
+            this.m_cameraOverride.near = Math.min(
+                this.m_cameraOverride.near,
+                this.m_viewRange.minimum
             );
-            this.m_frustumIntersection.updateFrustum(this.m_projectionMatrixOverride);
+            this.m_cameraOverride.far = Math.max(
+                this.m_cameraOverride.far,
+                this.m_viewRange.maximum
+            );
+            this.m_cameraOverride.updateProjectionMatrix();
+            this.m_frustumIntersection.updateFrustum(this.m_cameraOverride.projectionMatrix);
         } else {
             this.m_frustumIntersection.updateFrustum();
         }
